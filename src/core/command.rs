@@ -110,6 +110,7 @@ impl Command {
             Command::Add { files, skip_ext_check }
                 if files.iter().any(|path| path.is_absolute()) =>
             {
+                // TODO Add next in queue
                 Ok(Box::new(move |client| {
                     let Some(MpdConfig { music_directory, .. }) = client.config() else {
                         status_error!("Cannot add absolute path without socket connection to MPD");
@@ -161,6 +162,68 @@ impl Command {
             Command::Add { files, .. } => Ok(Box::new(move |client| {
                 for file in &files {
                     client.add(&file.to_string_lossy())?;
+                }
+
+                Ok(())
+            })),
+
+            Command::AddNext { files, skip_ext_check }
+                if files.iter().any(|path| path.is_absolute()) =>
+            {
+                // TODO Add next in queue
+                Ok(Box::new(move |client| {
+                    let Some(MpdConfig { music_directory, .. }) = client.config() else {
+                        status_error!("Cannot add absolute path without socket connection to MPD");
+                        return Ok(());
+                    };
+
+                    let dir = music_directory.clone();
+
+                    let mut files = files;
+
+                    if !skip_ext_check {
+                        let supported_extensions = client
+                            .decoders()?
+                            .into_iter()
+                            .flat_map(|decoder| decoder.suffixes)
+                            .collect_vec();
+
+                        files = files
+                            .into_iter()
+                            .filter(|path| {
+                                path.to_string_lossy() == "/"
+                                    || path.extension().and_then(|ext| ext.to_str()).is_some_and(
+                                        |ext| {
+                                            supported_extensions
+                                                .iter()
+                                                .any(|supported_ext| supported_ext == ext)
+                                        },
+                                    )
+                            })
+                            .collect_vec();
+                    }
+                    for (position_after_current, file) in files.iter().enumerate() {
+                        if file.starts_with(&dir) {
+                            client.add_relative_index(
+                                file.to_string_lossy()
+                                    .trim_start_matches(&dir)
+                                    .trim_start_matches('/')
+                                    .trim_end_matches('/'),
+                                position_after_current,
+                            )?;
+                        } else {
+                            client.add(&file.to_string_lossy())?;
+                        }
+                    }
+
+                    Ok(())
+                }))
+            }
+
+            Command::AddNext { files, .. } => Ok(Box::new(move |client| {
+                for (position_after_current, file) in files.iter().enumerate() {
+                    status_info!("File '{}' added to the queue", position_after_current);
+                    client.add_relative_index(&file.to_string_lossy(), position_after_current)?;
                 }
 
                 Ok(())

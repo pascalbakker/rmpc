@@ -121,6 +121,16 @@ pub enum Command {
         #[arg(long = "skip-ext-check", default_value = "false")]
         skip_ext_check: bool,
     },
+    AddNext {
+        /// Files to add to MPD's queue
+        #[arg(value_hint = ValueHint::AnyPath)]
+        files: Vec<PathBuf>,
+        /// Rmpc checks whether MPD supports the added external file's
+        /// extension and skips it if it does not. This option disables
+        /// this behaviour and rmpc will try to add all the files
+        #[arg(long = "skip-ext-check", default_value = "false")]
+        skip_ext_check: bool,
+    },
     /// Add a song from youtube to the current queue.
     AddYt { url: String },
     /// List MPD outputs

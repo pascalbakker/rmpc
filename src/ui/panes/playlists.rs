@@ -406,6 +406,35 @@ impl BrowserPane<DirOrSong> for PlaylistsPane {
         Ok(())
     }
 
+    fn add_next(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {
+        match item {
+            DirOrSong::Dir { name: d, .. } => {
+                let d = d.clone();
+                context.command(move |client| {
+                    client.load_playlist(&d)?;
+                    status_info!("Playlist '{d}' added to queue");
+                    Ok(())
+                });
+            }
+            DirOrSong::Song(s) => {
+                let file = s.file.clone();
+                context.command(move |client| {
+                    client.add(&file)?;
+                    if let Ok(Some(song)) = client.find_one(&[Filter::new(Tag::File, &file)]) {
+                        status_info!(
+                            "'{}' by '{}' added to queue",
+                            song.title_str(),
+                            song.artist_str()
+                        );
+                    }
+                    Ok(())
+                });
+            }
+        };
+
+        Ok(())
+    }
+
     fn add(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {
         match item {
             DirOrSong::Dir { name: d, .. } => {

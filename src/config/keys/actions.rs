@@ -333,6 +333,8 @@ pub enum CommonActionFile {
     Select,
     InvertSelection,
     Add,
+    AddNext,
+    AddAllNext,
     Delete,
     Rename,
     Close,
@@ -365,6 +367,8 @@ pub enum CommonAction {
     Select,
     InvertSelection,
     Add,
+    AddNext,
+    AddAllNext,
     Delete,
     Rename,
     Close,
@@ -397,6 +401,8 @@ impl ToDescription for CommonAction {
             CommonAction::InvertSelection => "Inverts the current selected items",
             CommonAction::Add => "Add item to queue",
             CommonAction::AddAll => "Add all items to queue",
+            CommonAction::AddNext => "Add item to queue next",
+            CommonAction::AddAllNext => "Add all selected item to queue next",
             CommonAction::Delete => {
                 "Delete. For example a playlist, song from a playlist or wipe the current queue"
             }
@@ -439,6 +445,8 @@ impl From<CommonActionFile> for CommonAction {
             CommonActionFile::Select => CommonAction::Select,
             CommonActionFile::InvertSelection => CommonAction::InvertSelection,
             CommonActionFile::Add => CommonAction::Add,
+            CommonActionFile::AddNext => CommonAction::AddNext,
+            CommonActionFile::AddAllNext => CommonAction::AddAllNext,
             CommonActionFile::Delete => CommonAction::Delete,
             CommonActionFile::Rename => CommonAction::Rename,
             CommonActionFile::Close => CommonAction::Close,

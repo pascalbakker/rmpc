@@ -13,11 +13,8 @@ use crate::{
         mpd_client::{Filter, FilterKind, MpdClient, Tag},
     },
     shared::{
-        ext::mpd_client::MpdClientExt,
-        key_event::KeyEvent,
-        macros::status_info,
-        mouse_event::MouseEvent,
-        mpd_query::PreviewGroup,
+        ext::mpd_client::MpdClientExt, key_event::KeyEvent, macros::status_info,
+        mouse_event::MouseEvent, mpd_query::PreviewGroup,
     },
     ui::{
         UiEvent,
@@ -265,6 +262,31 @@ impl BrowserPane<DirOrSong> for DirectoriesPane {
                 let file = song.file.clone();
                 context.command(move |client| {
                     client.add(&file)?;
+                    if let Ok(Some(song)) = client.find_one(&[Filter::new(Tag::File, &file)]) {
+                        status_info!(
+                            "'{}' by '{}' added to queue next",
+                            song.title_str(),
+                            song.artist_str()
+                        );
+                    }
+                    Ok(())
+                });
+            }
+        };
+
+        context.render()?;
+
+        Ok(())
+    }
+
+    fn add_next(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {
+        match item {
+            // TODO add directories recursively
+            DirOrSong::Dir { name: _, full_path: _ } => {}
+            DirOrSong::Song(song) => {
+                let file = song.file.clone();
+                context.command(move |client| {
+                    client.add_relative_index(&file, 0)?;
                     if let Ok(Some(song)) = client.find_one(&[Filter::new(Tag::File, &file)]) {
                         status_info!(
                             "'{}' by '{}' added to queue",

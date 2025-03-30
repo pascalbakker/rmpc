@@ -1,3 +1,4 @@
+pub mod current_index;
 pub mod current_song;
 pub mod decoders;
 pub mod idle;
@@ -16,6 +17,7 @@ pub mod update;
 pub mod volume;
 
 pub use self::{
+    current_index::CurrentIndex,
     current_song::Song,
     decoders::Decoder,
     idle::IdleEvent,

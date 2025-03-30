@@ -14,11 +14,8 @@ use crate::{
         mpd_client::{Filter, MpdClient, Tag},
     },
     shared::{
-        ext::mpd_client::MpdClientExt,
-        key_event::KeyEvent,
-        macros::status_info,
-        mouse_event::MouseEvent,
-        mpd_query::PreviewGroup,
+        ext::mpd_client::MpdClientExt, key_event::KeyEvent, macros::status_info,
+        mouse_event::MouseEvent, mpd_query::PreviewGroup,
     },
     ui::{
         UiEvent,
@@ -247,6 +244,36 @@ impl BrowserPane<DirOrSong> for AlbumsPane {
 
     fn next(&mut self, context: &AppContext) -> Result<()> {
         self.open_or_play(false, context)
+    }
+
+    fn add_next(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {
+        match self.stack.path() {
+            [album] => {
+                let album = album.clone();
+                let name = item.dir_name_or_file_name().into_owned();
+                // TODO USE THIS FOR DIR, FILTER BY BASE
+                context.command(move |client| {
+                    client.find_add_next(&[
+                        Filter::new(Tag::File, &name),
+                        Filter::new(Tag::Album, album.as_str()),
+                    ])?;
+
+                    status_info!("'{name}' added to queue after current song");
+                    Ok(())
+                });
+            }
+            [] => {
+                let name = item.dir_name_or_file_name().into_owned();
+                context.command(move |client| {
+                    client.find_add_next(&[Filter::new(Tag::Album, &name)])?;
+                    status_info!("Album '{name}' added to queue after current song");
+                    Ok(())
+                });
+            }
+            _ => {}
+        };
+
+        Ok(())
     }
 
     fn add(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {

@@ -41,6 +41,7 @@ where
     ) -> impl FnOnce(&mut Client<'_>) -> Result<Vec<Song>> + Send + 'static;
     fn prepare_preview(&mut self, context: &AppContext) -> Result<()>;
     fn add(&self, item: &T, context: &AppContext) -> Result<()>;
+    fn add_next(&self, item: &T, context: &AppContext) -> Result<()>;
     fn add_all(&self, context: &AppContext) -> Result<()>;
     fn open(&mut self, context: &AppContext) -> Result<()>;
     fn delete(&self, item: &T, index: usize, context: &AppContext) -> Result<()> {
@@ -325,6 +326,12 @@ where
                     self.add(item, context);
                 }
             }
+            CommonAction::AddNext => {
+                if let Some(item) = self.stack().current().selected() {
+                    self.add_next(item, context);
+                }
+            }
+            CommonAction::AddAllNext => {}
             CommonAction::AddAll if !self.stack().current().items.is_empty() => {
                 log::debug!("add all");
                 self.add_all(context)?;

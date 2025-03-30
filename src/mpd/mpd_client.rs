@@ -13,15 +13,7 @@ use super::{
     FromMpd,
     client::Client,
     commands::{
-        IdleEvent,
-        ListFiles,
-        LsInfo,
-        Mounts,
-        Playlist,
-        Song,
-        Status,
-        Update,
-        Volume,
+        CurrentIndex, IdleEvent, ListFiles, LsInfo, Mounts, Playlist, Song, Status, Update, Volume,
         decoders::Decoders,
         list::MpdList,
         list_playlist::FileList,
@@ -129,6 +121,7 @@ pub trait MpdClient: Sized {
     fn list_mounts(&mut self) -> MpdResult<Mounts>;
     // Current queue
     fn add(&mut self, path: &str) -> MpdResult<()>;
+    fn add_relative_index(&mut self, path: &str, id: usize) -> MpdResult<CurrentIndex>;
     fn clear(&mut self) -> MpdResult<()>;
     fn delete_id(&mut self, id: u32) -> MpdResult<()>;
     fn delete_from_queue(&mut self, songs: SingleOrRange) -> MpdResult<()>;
@@ -139,7 +132,9 @@ pub trait MpdClient: Sized {
     fn move_id(&mut self, id: u32, to: QueueMoveTarget) -> MpdResult<()>;
     fn find_one(&mut self, filter: &[Filter<'_>]) -> MpdResult<Option<Song>>;
     fn find_add(&mut self, filter: &[Filter<'_>]) -> MpdResult<()>;
+    fn find_add_next(&mut self, filter: &[Filter<'_>]) -> MpdResult<()>;
     fn search_add(&mut self, filter: &[Filter<'_>]) -> MpdResult<()>;
+    fn search_add_next(&mut self, filter: &[Filter<'_>]) -> MpdResult<()>;
     fn list_tag(&mut self, tag: Tag, filter: Option<&[Filter<'_>]>) -> MpdResult<MpdList>;
     // Database
     fn lsinfo(&mut self, path: Option<&str>) -> MpdResult<LsInfo>;
@@ -401,6 +396,12 @@ impl MpdClient for Client<'_> {
         self.send(&format!("add {}", uri.quote_and_escape())).and_then(read_ok)
     }
 
+    // TODO make add for next
+
+    fn add_relative_index(&mut self, uri: &str, idx: usize) -> MpdResult<CurrentIndex> {
+        self.send(&format!("addid {} +{idx}", uri.quote_and_escape())).and_then(read_response)
+    }
+
     fn clear(&mut self) -> MpdResult<()> {
         self.send("clear").and_then(read_ok)
     }
@@ -480,6 +481,10 @@ impl MpdClient for Client<'_> {
         self.send(&format!("findadd \"({})\"", filter.to_query_str())).and_then(read_ok)
     }
 
+    fn find_add_next(&mut self, filter: &[Filter<'_>]) -> MpdResult<()> {
+        self.send(&format!("findadd \"({})\" +0", filter.to_query_str())).and_then(read_ok)
+    }
+
     /// Search the database for songs matching FILTER (see Filters) AND add them
     /// to queue. Parameters have the same meaning as for find, except that
     /// search is not case sensitive.
@@ -488,6 +493,13 @@ impl MpdClient for Client<'_> {
         let query = query.as_str();
         log::debug!(query; "Searching for songs and adding them");
         self.send(&format!("searchadd \"({query})\"")).and_then(read_ok)
+    }
+
+    fn search_add_next(&mut self, filter: &[Filter<'_>]) -> MpdResult<()> {
+        let query = filter.to_query_str();
+        let query = query.as_str();
+        log::debug!(query; "Searching for songs and adding them next in queue");
+        self.send(&format!("searchadd \"({query})\" position +0")).and_then(read_ok)
     }
 
     fn list_tag(&mut self, tag: Tag, filter: Option<&[Filter<'_>]>) -> MpdResult<MpdList> {

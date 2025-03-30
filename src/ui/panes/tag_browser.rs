@@ -18,12 +18,8 @@ use crate::{
         mpd_client::{Filter, FilterKind, MpdClient, Tag},
     },
     shared::{
-        ext::mpd_client::MpdClientExt,
-        key_event::KeyEvent,
-        macros::status_info,
-        mouse_event::MouseEvent,
-        mpd_query::PreviewGroup,
-        string_util::StringExt,
+        ext::mpd_client::MpdClientExt, key_event::KeyEvent, macros::status_info,
+        mouse_event::MouseEvent, mpd_query::PreviewGroup, string_util::StringExt,
     },
     ui::{
         UiEvent,
@@ -438,6 +434,78 @@ impl BrowserPane<DirOrSong> for TagBrowserPane {
                 DirOrSong::Song(song) => vec![song.clone()],
             })
         }
+    }
+
+    fn add_next(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {
+        match self.stack.path() {
+            [artist, album] => {
+                let root_tag = self.root_tag.clone();
+                let separator = self.separator.clone();
+                let artist = artist.clone();
+                let name = item.dir_name_or_file_name().into_owned();
+
+                let Some(albums) = self.cache.0.get(&artist) else {
+                    return Ok(());
+                };
+
+                let Some(original_name) =
+                    albums.0.iter().find(|a| &a.name == album).map(|a| a.original_name.clone())
+                else {
+                    return Ok(());
+                };
+
+                context.command(move |client| {
+                    client.find_add(&[
+                        Self::root_tag_filter(root_tag, separator, artist.as_str()),
+                        Filter::new(Tag::Album, original_name.as_str()),
+                        Filter::new(Tag::File, &name),
+                    ])?;
+
+                    status_info!("'{name}' added to queue");
+                    Ok(())
+                });
+            }
+            [artist] => {
+                let artist = artist.clone();
+                let name = item.dir_name_or_file_name().into_owned();
+                let root_tag = self.root_tag.clone();
+                let separator = self.separator.clone();
+
+                let Some(albums) = self.cache.0.get(&artist) else {
+                    return Ok(());
+                };
+
+                let Some(original_name) =
+                    albums.0.iter().find(|a| a.name == name).map(|a| a.original_name.clone())
+                else {
+                    return Ok(());
+                };
+
+                context.command(move |client| {
+                    client.find_add(&[
+                        Self::root_tag_filter(root_tag, separator, artist.as_str()),
+                        Filter::new(Tag::Album, &original_name),
+                    ])?;
+
+                    status_info!("Album '{name}' by '{artist}' added to queue");
+                    Ok(())
+                });
+            }
+            [] => {
+                let name = item.dir_name_or_file_name().into_owned();
+                let root_tag = self.root_tag.clone();
+                let separator = self.separator.clone();
+                context.command(move |client| {
+                    client.find_add(&[Self::root_tag_filter(root_tag, separator, &name)])?;
+
+                    status_info!("All songs by '{name}' added to queue");
+                    Ok(())
+                });
+            }
+            _ => {}
+        };
+
+        Ok(())
     }
 
     fn add(&self, item: &DirOrSong, context: &AppContext) -> Result<()> {

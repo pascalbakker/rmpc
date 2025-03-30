@@ -105,6 +105,36 @@ impl SearchPane {
         Ok(())
     }
 
+    fn add_current_next(&mut self, autoplay: bool, context: &AppContext) -> Result<()> {
+        if !self.songs_dir.marked().is_empty() {
+            for (relative_queue_index, idx) in self.songs_dir.marked().iter().enumerate() {
+                let item = self.songs_dir.items[*idx].file.clone();
+                context.command(move |client| {
+                    client.add_relative_index(&item, relative_queue_index)?;
+                    Ok(())
+                });
+            }
+            status_info!("Added {} songs to queue next", self.songs_dir.marked().len());
+
+            context.render()?;
+        } else if let Some(item) = self.songs_dir.selected() {
+            let item = item.file.clone();
+            context.command(move |client| {
+                client.add_relative_index(&item, 0)?;
+                status_info!("Added '{item}' to queue next");
+                Ok(())
+            });
+            let queue_len = context.queue.len();
+            if autoplay {
+                context.command(move |client| Ok(client.play_last(queue_len)?));
+            }
+
+            context.render()?;
+        }
+
+        Ok(())
+    }
+
     fn render_song_column(
         &mut self,
         frame: &mut ratatui::prelude::Frame<'_>,
@@ -343,6 +373,48 @@ impl SearchPane {
         } else {
             context.command(move |client| {
                 client.search_add(
+                    &filter
+                        .iter_mut()
+                        .map(|(ref mut key, ref value, kind)| {
+                            Filter::new(std::mem::take(key), value).with_type(*kind)
+                        })
+                        .collect_vec(),
+                )?;
+                Ok(())
+            });
+        }
+    }
+
+    fn search_add_next(&mut self, context: &AppContext) {
+        let (filter_kind, case_sensitive) = self.filter_type();
+        let filter = self.inputs.textbox_inputs.iter().filter_map(|input| match &input {
+            Textbox { value, filter_key, .. } if !value.is_empty() => {
+                Some((filter_key.to_owned(), value.to_owned(), filter_kind))
+            }
+            _ => None,
+        });
+
+        let mut filter = filter.collect_vec();
+
+        if filter.is_empty() {
+            return;
+        }
+
+        if case_sensitive {
+            context.command(move |client| {
+                client.find_add_next(
+                    &filter
+                        .iter_mut()
+                        .map(|(ref mut key, ref value, kind)| {
+                            Filter::new(std::mem::take(key), value).with_type(*kind)
+                        })
+                        .collect_vec(),
+                )?;
+                Ok(())
+            });
+        } else {
+            context.command(move |client| {
+                client.search_add_next(
                     &filter
                         .iter_mut()
                         .map(|(ref mut key, ref value, kind)| {
@@ -881,6 +953,14 @@ impl Pane for SearchPane {
                             }
                             _ => {}
                         },
+                        CommonAction::AddAllNext => {
+                            self.search_add_next(context);
+
+                            status_info!("All found songs added to queue after current song");
+
+                            context.render()?;
+                        }
+                        CommonAction::AddNext => {}
                         CommonAction::PaneDown => {}
                         CommonAction::PaneUp => {}
                         CommonAction::PaneRight => {}
@@ -1043,6 +1123,13 @@ impl Pane for SearchPane {
                         CommonAction::AddAll => {
                             self.search_add(context);
                             status_info!("All found songs added to queue");
+
+                            context.render()?;
+                        }
+                        CommonAction::AddNext => self.add_current_next(false, context)?,
+                        CommonAction::AddAllNext => {
+                            self.search_add_next(context);
+                            status_info!("All found songs added to queue after current song");
 
                             context.render()?;
                         }

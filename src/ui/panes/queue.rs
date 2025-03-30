@@ -36,9 +36,7 @@ use crate::{
         UiEvent,
         dirstack::DirState,
         modals::{
-            confirm_modal::ConfirmModal,
-            input_modal::InputModal,
-            select_modal::SelectModal,
+            confirm_modal::ConfirmModal, input_modal::InputModal, select_modal::SelectModal,
             song_info::SongInfoModal,
         },
     },
@@ -546,6 +544,8 @@ impl Pane for QueuePane {
             }
         } else if let Some(action) = event.as_common_action(context) {
             match action {
+                CommonAction::AddNext => {}
+                CommonAction::AddAllNext => {}
                 CommonAction::Up => {
                     if !context.queue.is_empty() {
                         self.scrolling_state
